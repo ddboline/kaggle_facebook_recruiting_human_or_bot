@@ -15,48 +15,45 @@ def clean_data(indf):
         if col in indf.columns:
             indf[col] = indf[col].astype(int)
     
-    indf['country'] = indf['country'].map({k: i for (i, k) in enumerate(COUNTRIES)})
+    indf['country'] = indf['country'].map({k: i for (i, k)
+                                          in enumerate(COUNTRIES)})
+    indf.loc[:, 'country'][indf['country'].isnull()] = -1
+    indf['country'] = indf['country'].astype(int)
 
     indf = indf.drop(labels=['payment_account', 'address'], 
                      axis=1)
     return indf
 
-def load_data():
+def load_data(do_plots=False):
     train_df = pd.read_csv('train.csv.gz', compression='gzip')
     test_df = pd.read_csv('test.csv.gz', compression='gzip')
     submit_df = pd.read_csv('sampleSubmission.csv.gz', compression='gzip')
     bid_df = pd.read_csv('bid_reduced.csv.gz', compression='gzip')
 
-    print train_df.shape, test_df.shape
-    bid_initial = list(train_df['bidder_id'])
     train_df = train_df.merge(bid_df, on='bidder_id', how='inner')
     test_df = test_df.merge(bid_df, on='bidder_id', how='inner')
-    bid_final = list(train_df['bidder_id'])
-    for bid in bid_initial:
-        if bid not in bid_final:
-            print bid
-    exit(0)
     
-    print train_df.shape, test_df.shape
     train_df = clean_data(train_df)
     test_df = clean_data(test_df)
-    print train_df.shape, test_df.shape
-#    print train_df[train_df['outcome'] == 0]['n_countries'].describe()
-#    print train_df[train_df['outcome'] == 1]['n_countries'].describe()
-#    print train_df[train_df['outcome'] == 0]['n_devices'].describe()
-#    print train_df[train_df['outcome'] == 1]['n_devices'].describe()
-#    print train_df[train_df['outcome'] == 0]['n_auctions'].describe()
-#    print train_df[train_df['outcome'] == 1]['n_auctions'].describe()
-#    print train_df[train_df['outcome'] == 0]['n_per_auc'].describe()
-#    print train_df[train_df['outcome'] == 1]['n_per_auc'].describe()
     
-    for df in train_df, test_df:
-        print df.columns
-        print df.shape
-        print df.dtypes
-        for col in df.columns:
-            print col, len(df[col].unique())
-    return
+    if do_plots:
+        from plot_data import plot_data
+        plot_data(train_df, prefix='html_train')
+        plot_data(test_df, prefix='html_test')
+
+    print train_df.dtypes
+    print test_df.dtypes
+    print submit_df.dtypes
+
+    xtrain = train_df.drop(labels=['outcome','bidder_id'], axis=1).values
+    ytrain = train_df['outcome'].values
+    xtest = test_df.drop(labels=['bidder_id'], axis=1).values
+    ytest = submit_df
+    y_id = list(test_df['bidder_id'])
+
+    return xtrain, ytrain, xtest, ytest, y_id
 
 if __name__ == '__main__':
-    load_data()
+    xtrain, ytrain, xtest, ytest, y_id = load_data(do_plots=False)
+
+    print [x.shape for x in (xtrain, ytrain, xtest, ytest)]
